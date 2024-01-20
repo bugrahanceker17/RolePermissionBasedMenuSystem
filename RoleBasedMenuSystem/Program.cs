@@ -1,8 +1,11 @@
 using System.Security.Claims;
+using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using RoleBasedMenuSystem.Core.Entities.Concrete;
 using RoleBasedMenuSystem.Core.Extensions;
@@ -76,6 +79,15 @@ builder.Services.AddCors(options =>
         opt.WithOrigins("*").AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin())
 );
 
+builder.Services.AddHealthChecks()
+    .AddSqlServer(
+        connectionString: builder.Configuration.GetSection("Database:ConnectionString").Value,
+        healthQuery: "SELECT 1",
+        name: "MS SQL Server Check",
+        failureStatus: HealthStatus.Unhealthy | HealthStatus.Degraded,
+        tags: new string[] { "db", "sql", "sqlserver" });
+
+
 builder.Services.AddAutoMapper(typeof(Program));
 
 WebApplication app = builder.Build();
@@ -148,6 +160,11 @@ using (IServiceScope scope = app.Services.CreateScope())
 app.UseHsts();
 
 app.SwaggerConfigure("RoleBaseMenuSystem", "v1");
+
+app.UseHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
 
 app.UseCors();
 
